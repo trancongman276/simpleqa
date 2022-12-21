@@ -33,3 +33,13 @@ def norm(x: torch.Tensor, dim: int = 1, **kwargs) -> torch.Tensor:
     :return:        normalized torch tensor.
     """
     return x / x.norm(dim=dim)[:, None]
+
+def cosine(a: torch.Tensor, b: torch.Tensor, **kwargs) -> torch.Tensor:
+    """
+    Calculate cosine between two tensor.
+    :param a:       first input as a torch tensor.
+    :param b:       second input as a torch tensor.
+    :param kwargs:  additional keyword arguments.
+    :return:        cosine matrix as a torch tensor.
+    """
+    return torch.mm(a, b.transpose(0, 1))
