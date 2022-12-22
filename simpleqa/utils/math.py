@@ -45,4 +45,8 @@ def cosine(a: torch.Tensor, b: torch.Tensor, **kwargs) -> torch.Tensor:
     :param kwargs:  additional keyword arguments.
     :return:        cosine matrix as a torch tensor.
     """
+    # Make sure inputs is torch tensors.
+    a = a if isinstance(a, torch.Tensor) else torch.Tensor(a)
+    b = b if isinstance(b, torch.Tensor) else torch.Tensor(b)
+    # Return result.
     return torch.mm(a, b.transpose(0, 1))
