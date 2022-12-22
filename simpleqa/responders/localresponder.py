@@ -63,12 +63,12 @@ class LocalResponder(Responder):
         if ans_file.is_file() and emb_file.is_file():
             return torch.load(str(emb_file)), pickle.load(ans_file.open("rb"))
         # Load dataset.
-        data = self.load(path)
+        data = self.load(str(path))
         qs, ans = data["QUESTION"].tolist(), data["ANSWER"].tolist()
         qs_emb = self.encode(qs)
         # Save pre-generated files.
         torch.save(qs_emb, str(emb_file))
-        pickle.dump(ans, ans_file.open())
+        pickle.dump(ans, ans_file.open("w+b"))
         # Return result.
         return qs_emb, ans
 
