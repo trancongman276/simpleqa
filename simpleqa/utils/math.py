@@ -32,6 +32,9 @@ def norm(x: torch.Tensor, dim: int = 1, **kwargs) -> torch.Tensor:
     :param kwargs:  additional keyword arguments.
     :return:        normalized torch tensor.
     """
+    # Make sure input is torch tensor.
+    x = x if isinstance(x, torch.Tensor) else torch.Tensor(x)
+    # Return result.
     return x / x.norm(dim=dim)[:, None]
 
 def cosine(a: torch.Tensor, b: torch.Tensor, **kwargs) -> torch.Tensor:
