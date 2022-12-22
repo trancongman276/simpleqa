@@ -24,17 +24,26 @@
 
 import os
 import torch
-from types import Union
+from typing import Union
 from simpleqa.utils import math
-from abc import ABC, abstractmethod
 from sentence_transformers import SentenceTransformer
 
 
-class Responder(ABC):
+class Responder:
     """
     The Responder has responsibility to give answers for received questions 
     based on text similarity search on a given dataset.
     """
+
+    @property
+    def name(self):
+        """Get current model name."""
+        return self._name
+
+    @property
+    def model(self):
+        """Get current model."""
+        return self._model
 
     def __init__(self, model: str = os.getenv('MODEL', 'all-MiniLM-L6-v2'), **kwargs) -> None:
         """
@@ -42,6 +51,7 @@ class Responder(ABC):
         :param model:   name of pre-trained model.
         :param kwargs:  additional keyword arguments.
         """
+        self._name = model
         self._model = SentenceTransformer(model)
 
     def encode(self, inputs: Union[list[str], str], is_norm: bool = True, **kwargs) -> torch.Tensor:
@@ -68,14 +78,13 @@ class Responder(ABC):
         a, b = a if isinstance(a, list) else a, b if isinstance(b, list) else b
         return math.cosine(self.encode(a, is_norm), self.encode(b, is_norm))
 
-    @abstractmethod
-    def answer(self, questions: Union[list[str], str], **kwargs) -> list[str]:
+    def answer(self, inputs: Union[list[str], str], thresh: float = float(os.getenv("THRESH", 0.86)), **kwargs) -> list[str]:
         """
         Give answer based on input questions.
-        :param questions:   input questions.
-        :param kwargs:      additional keyword arguments.
-        :return:            answers
+        :param inputs:  input questions.
+        :param kwargs:  additional keyword arguments.
+        :return:        answers.
         """
         # Let inherited classes do what they want.
-        raise NotImplementedError()
+        return None
     
