@@ -23,3 +23,4 @@
 # -----------------------------------------------------------------------------
 
 from .responder import Responder
+from .localresponder import LocalResponder
