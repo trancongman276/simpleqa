@@ -38,7 +38,7 @@ class LocalResponder(Responder):
     This responder will give answers from given local datasets (xlsx and csv format).
     """
 
-    def __init__(self, data = os.getenv("DATA_PATH", "data"), **kwargs) -> None:
+    def __init__(self, data = "data", **kwargs) -> None:
         """
         Class constructor.
         :param data:    path to data file or directory.
@@ -47,7 +47,7 @@ class LocalResponder(Responder):
         super().__init__(**kwargs)
         self.emb, self.ans = self.prepare(data=data)
 
-    def prepare(self, data = os.getenv("DATA_PATH", "data"), prepare: str = os.getenv("PREPARE_PATH", "prepare"), **kwargs):
+    def prepare(self, data = "data", prepare: str = "prepare", **kwargs):
         """
         Prepare datasets and embeddings. 
         :param data:    path to data file or directory.
@@ -55,7 +55,7 @@ class LocalResponder(Responder):
         :param kwargs:  additional keyword arguments.
         :return:        question embeddings and answer data.
         """
-        hash = hashlib.md5(self.name.encode()).hexdigest()
+        hash = hashlib.md5(self.model_name.encode()).hexdigest()
         # Path to prepare folder and files.
         pre_dir = pathlib.Path(prepare)
         pre_dir.mkdir(parents=True, exist_ok=True)
@@ -65,7 +65,7 @@ class LocalResponder(Responder):
         if ans_file.is_file() and emb_file.is_file():
             return torch.load(str(emb_file)), pickle.load(ans_file.open("rb"))
         # Load dataset.
-        data = self.load(data)
+        data = self.load_data(data)
         qs, ans = data["QUESTION"].tolist(), data["ANSWER"].tolist()
         qs_emb = self.encode(qs)
         # Save pre-generated files.
@@ -74,49 +74,48 @@ class LocalResponder(Responder):
         # Return result.
         return qs_emb, ans
 
-    def load(self, data: Union[list[str], str], **kwargs) -> pd.DataFrame:
+    @staticmethod
+    def load_data(data: Union[list[str], str], **kwargs) -> pd.DataFrame:
         """
         Load data from files or directory.
         :param data:    path to data files or directory.
         :param kwargs:  additional keyword arguments.
         :return:        loaded data as pandas data-frame.
         """
+        # Validate path types.
+        assert isinstance(data, str) or isinstance(data, list), "Invalid data path!"
         # In case path is singular string.
         if isinstance(data, str):
-            path_obj = pathlib.Path(data)
+            path = pathlib.Path(data)
+            # Validate path, only file or directory is accepted.
+            assert path.is_file() or path.is_dir(), "Invalid data path!"
             # If path is file.
-            if path_obj.is_file():
-                ext, path_str = path_obj.suffix, str(path_obj)
-                # Load into data-frame based on file format.
-                if ext == ".xlsx":
-                    df = pd.read_excel(path_str)
-                elif ext == ".csv":
-                    df = pd.read_csv(path_str)
-                # Raise error if file format is invalid.
-                else:
-                    raise TypeError("Invalid data format!")
-                # Return data-frame.
-                return df 
+            if path.is_file():
+                # Validate file path
+                assert path.suffix in [".xlsx", ".csv"], "Invalid data file!"
+                # Load data file
+                df = pd.read_excel(str(path)) if path.suffix == ".xlsx" else pd.read_csv(str(path))
             # In case path is directory, recursive load all sub-files.
-            elif path_obj.is_dir():
-                return self.load([str(i) for i in path_obj.glob("**/*") if i.suffix in [".xlsx", ".csv"]])
-            # Raise error if path is invalid.
-            raise TypeError("Invalid data path!")
+            elif path.is_dir():
+                df = LocalResponder.load_data([str(i) for i in path.glob("**/*") if i.suffix in [".xlsx", ".csv"]])
         # In case path is list of files or directories, recursive load them all and then concat them.
         elif isinstance(data, list):
-            df = [self.load(file) for file in data]
+            df = [LocalResponder.load_data(file) for file in data]
             df = pd.concat(df)
-            return df
-        # Raise error if path is invalid.
-        raise TypeError("Invalid data path!")
+        # Preprocess data-frame.
+        df = df.apply(lambda x: x.str.split("\n"))
+        df = df.explode(["QUESTION"]).explode(["ANSWER"])
+        # Return result.
+        return df
 
-    def answer(self, inputs: Union[list[str], str], thresh: float = ..., **kwargs) -> list:
+    def answer(self, inputs: Union[list[str], str], **kwargs) -> list:
         """
         Give answer based on input questions.
         :param inputs:  input questions.
         :param kwargs:  additional keyword arguments.
         :return:        answers.
         """
+        thresh = super().answer(**kwargs)
         emb = self.encode(inputs)
         cosine = math.cosine(emb, self.emb)
         prob, ids = torch.max(cosine, dim=0)
