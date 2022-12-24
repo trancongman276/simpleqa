@@ -22,36 +22,56 @@
 # SOFTWARE.
 # -----------------------------------------------------------------------------
 
-import os
 import torch
 from typing import Union
 from simpleqa.utils import math
+from abc import ABC, abstractmethod
 from sentence_transformers import SentenceTransformer
 
 
-class Responder:
+class Responder(ABC):
     """
     The Responder has responsibility to give answers for received questions 
     based on text similarity search on a given dataset.
     """
 
     @property
-    def name(self):
-        """Get current model name."""
+    def model(self):
+        """
+        Get current model.
+        """
+        return self._model
+    
+    @property
+    def model_name(self):
+        """
+        Get current model name.
+        """
         return self._name
 
     @property
-    def model(self):
-        """Get current model."""
-        return self._model
+    def threshold(self):
+        """
+        Get current threshold.
+        """
+        return self._thresh
 
-    def __init__(self, model: str = os.getenv('MODEL', 'all-MiniLM-L6-v2'), **kwargs) -> None:
+    @threshold.setter
+    def threshold(self, value: float):
+        """
+        Set threshold.
+        """
+        self._thresh = 0 if value < 0 else 1 if value > 1 else float(value)
+
+    def __init__(self, model: str = 'all-MiniLM-L6-v2', threshold: float = 0.86, **kwargs) -> None:
         """
         Class constructor.
-        :param model:   name of pre-trained model.
-        :param kwargs:  additional keyword arguments.
+        :param model:       name of pre-trained model.
+        :param threshold:   threshold.
+        :param kwargs:      additional keyword arguments.
         """
         self._name = model
+        self.threshold = threshold
         self._model = SentenceTransformer(model)
 
     def encode(self, inputs: Union[list[str], str], is_norm: bool = True, **kwargs) -> torch.Tensor:
@@ -78,13 +98,14 @@ class Responder:
         a, b = a if isinstance(a, list) else a, b if isinstance(b, list) else b
         return math.cosine(self.encode(a, is_norm), self.encode(b, is_norm))
 
-    def answer(self, inputs: Union[list[str], str], thresh: float = float(os.getenv("THRESH", 0.86)), **kwargs) -> list[str]:
+    @abstractmethod
+    def answer(self, inputs: Union[list[str], str], threshold: float = None, **kwargs) -> list[str]:
         """
         Give answer based on input questions.
         :param inputs:  input questions.
         :param kwargs:  additional keyword arguments.
         :return:        answers.
         """
-        # Let inherited classes do what they want.
-        return None
+        # Return correct threshold for inherited class.
+        return self.threshold if threshold is None else 0 if threshold < 0 else 1 if threshold > 1 else threshold
     
