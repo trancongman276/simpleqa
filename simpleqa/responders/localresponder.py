@@ -38,32 +38,34 @@ class LocalResponder(Responder):
     This responder will give answers from given local datasets (xlsx and csv format).
     """
 
-    def __init__(self, path: str = os.getenv("DATA_PATH", "data"), **kwargs) -> None:
+    def __init__(self, data = os.getenv("DATA_PATH", "data"), **kwargs) -> None:
         """
         Class constructor.
-        :param path:    path to data file or directory.
+        :param data:    path to data file or directory.
         :param kwargs:  additional keyword arguments.
         """
         super().__init__(**kwargs)
-        self.embs, self.ans = self.prepare(pathlib.Path(path))
+        self.emb, self.ans = self.prepare(data=data)
 
-    def prepare(self, path: pathlib.Path, **kwargs) -> None:
+    def prepare(self, data = os.getenv("DATA_PATH", "data"), prepare: str = os.getenv("PREPARE_PATH", "prepare"), **kwargs):
         """
         Prepare datasets and embeddings. 
-        :param path:    path to data file or directory.
+        :param data:    path to data file or directory.
+        :param prepare: path to prepare directory.
         :param kwargs:  additional keyword arguments.
         :return:        question embeddings and answer data.
         """
         hash = hashlib.md5(self.name.encode()).hexdigest()
-        # Path to pre-generated files.
-        dir_path = str(path) if path.is_dir() else str(path.parent)
-        ans_file = pathlib.Path("{}/{}.ans".format(dir_path, hash))
-        emb_file = pathlib.Path("{}/{}.emb".format(dir_path, hash))
+        # Path to prepare folder and files.
+        pre_dir = pathlib.Path(prepare)
+        pre_dir.mkdir(parents=True, exist_ok=True)
+        emb_file = pre_dir.joinpath("{}.emb".format(hash))
+        ans_file = pre_dir.joinpath("{}.ans".format(hash))
         # Load and return data if pre-generated files exist.
         if ans_file.is_file() and emb_file.is_file():
             return torch.load(str(emb_file)), pickle.load(ans_file.open("rb"))
         # Load dataset.
-        data = self.load(str(path))
+        data = self.load(data)
         qs, ans = data["QUESTION"].tolist(), data["ANSWER"].tolist()
         qs_emb = self.encode(qs)
         # Save pre-generated files.
@@ -72,16 +74,16 @@ class LocalResponder(Responder):
         # Return result.
         return qs_emb, ans
 
-    def load(self, path: Union[list[str], str], **kwargs) -> pd.DataFrame:
+    def load(self, data: Union[list[str], str], **kwargs) -> pd.DataFrame:
         """
         Load data from files or directory.
-        :param path:    path to data files or directory.
+        :param data:    path to data files or directory.
         :param kwargs:  additional keyword arguments.
         :return:        loaded data as pandas data-frame.
         """
         # In case path is singular string.
-        if isinstance(path, str):
-            path_obj = pathlib.Path(path)
+        if isinstance(data, str):
+            path_obj = pathlib.Path(data)
             # If path is file.
             if path_obj.is_file():
                 ext, path_str = path_obj.suffix, str(path_obj)
@@ -101,23 +103,23 @@ class LocalResponder(Responder):
             # Raise error if path is invalid.
             raise TypeError("Invalid data path!")
         # In case path is list of files or directories, recursive load them all and then concat them.
-        elif isinstance(path, list):
-            df = [self.load(file) for file in path]
+        elif isinstance(data, list):
+            df = [self.load(file) for file in data]
             df = pd.concat(df)
             return df
         # Raise error if path is invalid.
         raise TypeError("Invalid data path!")
 
-    def answer(self, inputs: Union[list[str], str], thresh: float = ..., **kwargs) -> list[str]:
+    def answer(self, inputs: Union[list[str], str], thresh: float = ..., **kwargs) -> list:
         """
         Give answer based on input questions.
         :param inputs:  input questions.
         :param kwargs:  additional keyword arguments.
         :return:        answers.
         """
-        embs = self.encode(inputs)
-        cosine = math.cosine(embs, self.embs)
-        probs, idxs = torch.max(cosine, dim=0)
-        responses = [[self.ans[idxs[i]], probs[i]] for i in range(len(probs))]
-        return responses
+        emb = self.encode(inputs)
+        cosine = math.cosine(emb, self.emb)
+        prob, ids = torch.max(cosine, dim=0)
+        res = [[self.ans[ids[i]], prob[i]] for i in range(len(prob)) if prob[i] >= thresh]
+        return res
     
