@@ -49,21 +49,7 @@ class Responder(ABC):
         """
         return self._name
 
-    @property
-    def threshold(self):
-        """
-        Get current threshold.
-        """
-        return self._thresh
-
-    @threshold.setter
-    def threshold(self, value: float):
-        """
-        Set threshold.
-        """
-        self._thresh = 0 if value < 0 else 1 if value > 1 else float(value)
-
-    def __init__(self, model: str = 'all-MiniLM-L6-v2', threshold: float = 0.86, **kwargs) -> None:
+    def __init__(self, model: str = 'all-MiniLM-L6-v2', **kwargs) -> None:
         """
         Class constructor.
         :param model:       name of pre-trained model.
@@ -71,7 +57,6 @@ class Responder(ABC):
         :param kwargs:      additional keyword arguments.
         """
         self._name = model
-        self.threshold = threshold
         self._model = SentenceTransformer(model)
 
     def encode(self, inputs: Union[list[str], str], is_norm: bool = True, **kwargs) -> torch.Tensor:
@@ -99,13 +84,12 @@ class Responder(ABC):
         return math.cosine(self.encode(a, is_norm), self.encode(b, is_norm))
 
     @abstractmethod
-    def answer(self, inputs: Union[list[str], str], threshold: float = None, **kwargs) -> list[str]:
+    def answer(self, inputs: Union[list[str], str], **kwargs) -> list[str]:
         """
         Give answer based on input questions.
         :param inputs:  input questions.
         :param kwargs:  additional keyword arguments.
         :return:        answers.
         """
-        # Return correct threshold for inherited class.
-        return self.threshold if threshold is None else 0 if threshold < 0 else 1 if threshold > 1 else threshold
+        raise NotImplementedError()
     

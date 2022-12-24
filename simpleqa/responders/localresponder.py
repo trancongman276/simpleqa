@@ -115,10 +115,8 @@ class LocalResponder(Responder):
         :param kwargs:  additional keyword arguments.
         :return:        answers.
         """
-        thresh = super().answer(**kwargs)
         emb = self.encode(inputs)
         cosine = math.cosine(emb, self.emb)
         prob, ids = torch.max(cosine, dim=0)
-        res = [[self.ans[ids[i]], prob[i]] for i in range(len(prob)) if prob[i] >= thresh]
-        return res
+        return [[self.ans[ids[i]], prob[i]] for i in range(len(prob))]
     
