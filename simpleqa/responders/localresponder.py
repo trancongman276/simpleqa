@@ -117,7 +117,7 @@ class LocalResponder(Responder):
         """
         embs = self.encode(inputs)
         cosine = math.cosine(embs, self.embs)
-        probs, idxs = torch.max(cosine, dim=0)
-        responses = [[self.ans[idxs[i]], probs[i]] for i in range(len(probs))]
+        probs, idxs = torch.max(cosine, dim=1)
+        responses = [[self.ans[idxs[i]], probs[i]] for i in range(len(inputs))]
         return responses
     
